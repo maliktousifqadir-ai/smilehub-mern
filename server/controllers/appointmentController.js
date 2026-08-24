@@ -62,11 +62,12 @@ const createAppointment = async (req, res) => {
       status: "Pending",
     });
 
-    // Confirmation email
-    await sendEmail(
-      patientEmail,
-      "SmileHub - Appointment Confirmation",
-      `Hello ${patientName},
+    // Confirmation email (non-blocking — email fail hone se booking fail nahi honi chahiye)
+    try {
+      await sendEmail(
+        patientEmail,
+        "SmileHub - Appointment Confirmation",
+        `Hello ${patientName},
 
 Your SmileHub appointment has been booked successfully.
 
@@ -82,7 +83,13 @@ Thank you for choosing SmileHub.
 
 Regards,
 SmileHub Team`
-    );
+      );
+    } catch (emailError) {
+      console.error(
+        "⚠️ Confirmation email failed but appointment was created:",
+        emailError.message
+      );
+    }
 
     res.status(201).json({
       message: "Appointment Booked Successfully",
@@ -195,11 +202,12 @@ const updateAppointmentStatus = async (req, res) => {
 
     await appointment.save();
 
-    // Send email to patient
-    await sendEmail(
-      appointment.patientEmail,
-      `SmileHub - Appointment ${status}`,
-      `Hello ${appointment.patientName},
+    // Send email to patient (non-blocking — email fail hone se status update fail nahi honi chahiye)
+    try {
+      await sendEmail(
+        appointment.patientEmail,
+        `SmileHub - Appointment ${status}`,
+        `Hello ${appointment.patientName},
 
 Your SmileHub appointment status has been updated.
 
@@ -213,7 +221,13 @@ Status: ${status}
 
 Regards,
 SmileHub Team`
-    );
+      );
+    } catch (emailError) {
+      console.error(
+        "⚠️ Status update email failed but status was updated:",
+        emailError.message
+      );
+    }
 
     res.status(200).json({
       message: "Appointment status updated successfully",
@@ -271,11 +285,12 @@ const cancelAppointment = async (req, res) => {
 
     await appointment.save();
 
-    // Cancellation email
-    await sendEmail(
-      appointment.patientEmail,
-      "SmileHub - Appointment Cancelled",
-      `Hello ${appointment.patientName},
+    // Cancellation email (non-blocking — email fail hone se cancel fail nahi honi chahiye)
+    try {
+      await sendEmail(
+        appointment.patientEmail,
+        "SmileHub - Appointment Cancelled",
+        `Hello ${appointment.patientName},
 
 Your SmileHub appointment has been cancelled successfully.
 
@@ -291,7 +306,13 @@ If you want to book another appointment, please visit SmileHub.
 
 Regards,
 SmileHub Team`
-    );
+      );
+    } catch (emailError) {
+      console.error(
+        "⚠️ Cancellation email failed but appointment was cancelled:",
+        emailError.message
+      );
+    }
 
     res.status(200).json({
       message: "Appointment Cancelled Successfully",
@@ -389,11 +410,12 @@ const rescheduleAppointment = async (req, res) => {
 
     await appointment.save();
 
-    // Reschedule email
-    await sendEmail(
-      appointment.patientEmail,
-      "SmileHub - Appointment Rescheduled",
-      `Hello ${appointment.patientName},
+    // Reschedule email (non-blocking — email fail hone se reschedule fail nahi honi chahiye)
+    try {
+      await sendEmail(
+        appointment.patientEmail,
+        "SmileHub - Appointment Rescheduled",
+        `Hello ${appointment.patientName},
 
 Your SmileHub appointment has been rescheduled successfully.
 
@@ -416,7 +438,13 @@ Thank you for choosing SmileHub.
 
 Regards,
 SmileHub Team`
-    );
+      );
+    } catch (emailError) {
+      console.error(
+        "⚠️ Reschedule email failed but appointment was rescheduled:",
+        emailError.message
+      );
+    }
 
     res.status(200).json({
       message: "Appointment Rescheduled Successfully",
