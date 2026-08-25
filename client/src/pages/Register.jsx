@@ -27,14 +27,20 @@ function Register() {
         password,
       });
 
-      localStorage.setItem("userInfo", JSON.stringify(res.data));
+      toast.success(
+        "Registration successful! OTP sent to your email."
+      );
 
-      toast.success("Registration Successful");
-
-      navigate("/");
+      // Send email to OTP verification page
+      navigate("/verify-otp", {
+        state: {
+          email: res.data.email,
+        },
+      });
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Registration Failed"
+        error.response?.data?.message ||
+          "Registration Failed"
       );
     } finally {
       setLoading(false);
@@ -105,7 +111,9 @@ function Register() {
             className="btn btn-primary w-100"
             disabled={loading}
           >
-            {loading ? "Registering..." : "Register"}
+            {loading
+              ? "Registering..."
+              : "Register"}
           </button>
         </form>
 

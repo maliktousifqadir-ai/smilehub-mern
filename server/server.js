@@ -1,6 +1,3 @@
-const dns = require("dns");
-dns.setDefaultResultOrder("ipv4first"); // Fix IPv6 ENETUNREACH issue on Render
-
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -34,7 +31,6 @@ app.use("/api/services", serviceRoutes);
 app.get("/", (req, res) => {
   res.send("🚀 SmileHub Backend Server is Running...");
 });
-
 
 // Start Server
 const PORT = process.env.PORT || 5000;

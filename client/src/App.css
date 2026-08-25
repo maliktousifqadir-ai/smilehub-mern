@@ -1,26 +1,29 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-body {
-  background-color: #f4f7fc;
+.main-content {
+  flex: 1;
 }
 
-.app {
-  text-align: center;
-  margin-top: 100px;
+/* Smooth Transitions */
+a, button {
+  transition: all 0.2s ease-in-out;
 }
 
-.app h1 {
-  color: #0d6efd;
-  font-size: 40px;
-  margin-bottom: 15px;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
 }
-
-.app p {
-  font-size: 20px;
-  color: #555;
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

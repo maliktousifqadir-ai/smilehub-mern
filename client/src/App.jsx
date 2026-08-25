@@ -20,13 +20,14 @@ import DoctorDetails from "./pages/DoctorDetails";
 import MyAppointments from "./pages/MyAppointments";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyOTP from "./pages/VerifyOTP";
 
 function App() {
   return (
-    <>
+    <div className="d-flex flex-column min-vh-100">
       <Navbar />
 
-      <div className="container mt-4">
+      <main className="flex-grow-1 container my-3">
         <Routes>
 
           {/* Home */}
@@ -56,6 +57,12 @@ function App() {
           <Route
             path="/register"
             element={<Register />}
+          />
+
+          {/* Email OTP Verification */}
+          <Route
+            path="/verify-otp"
+            element={<VerifyOTP />}
           />
 
           {/* User Profile */}
@@ -107,21 +114,22 @@ function App() {
               </AdminRoute>
             }
           />
+
           {/* Admin Appointments */}
-<Route
-  path="/admin/appointments"
-  element={
-    <AdminRoute>
-      <AdminAppointments />
-    </AdminRoute>
-  }
-/>
+          <Route
+            path="/admin/appointments"
+            element={
+              <AdminRoute>
+                <AdminAppointments />
+              </AdminRoute>
+            }
+          />
 
         </Routes>
-      </div>
+      </main>
 
       <Footer />
-    </>
+    </div>
   );
 }
 

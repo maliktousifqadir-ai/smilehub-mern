@@ -1,6 +1,13 @@
 const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
 const sendEmail = require("../utils/sendEmail");
+const {
+  getAppointmentConfirmedTemplate,
+  getAppointmentCompletedTemplate,
+  getAppointmentCancelledTemplate,
+  getAppointmentBookedTemplate,
+  getAppointmentRescheduledTemplate,
+} = require("../utils/emailTemplates");
 
 // =====================================================
 // Create Appointment
@@ -42,7 +49,7 @@ const createAppointment = async (req, res) => {
       doctor,
       day,
       slot,
-     status: { $in: ["Pending", "Confirmed"] },
+      status: { $in: ["Pending", "Confirmed"] },
     });
 
     if (existingAppointment) {
@@ -62,27 +69,21 @@ const createAppointment = async (req, res) => {
       status: "Pending",
     });
 
-    // Confirmation email (non-blocking — email fail hone se booking fail nahi honi chahiye)
+    // Confirmation / Booking email (non-blocking)
     try {
+      const emailData = getAppointmentBookedTemplate({
+        patientName,
+        doctorName: doctorData.name,
+        specialization: doctorData.specialization,
+        day,
+        slot,
+      });
+
       await sendEmail(
         patientEmail,
-        "SmileHub - Appointment Confirmation",
-        `Hello ${patientName},
-
-Your SmileHub appointment has been booked successfully.
-
-Appointment Details:
-
-Doctor: ${doctorData.name}
-Specialization: ${doctorData.specialization || "N/A"}
-Day: ${day}
-Time Slot: ${slot}
-Status: Pending
-
-Thank you for choosing SmileHub.
-
-Regards,
-SmileHub Team`
+        emailData.subject,
+        emailData.message,
+        emailData.html
       );
     } catch (emailError) {
       console.error(
@@ -186,15 +187,16 @@ const updateAppointmentStatus = async (req, res) => {
       });
     }
 
-    // Find doctor
-    const doctorData = await Doctor.findById(
-      appointment.doctor
-    );
+    // Find doctor safely
+    let doctorName = "General Specialist";
+    let doctorSpecialization = "General Healthcare";
 
-    if (!doctorData) {
-      return res.status(404).json({
-        message: "Doctor not found",
-      });
+    if (appointment.doctor) {
+      const doc = await Doctor.findById(appointment.doctor);
+      if (doc) {
+        doctorName = doc.name || doctorName;
+        doctorSpecialization = doc.specialization || doctorSpecialization;
+      }
     }
 
     // Update status
@@ -202,26 +204,51 @@ const updateAppointmentStatus = async (req, res) => {
 
     await appointment.save();
 
-    // Send email to patient (non-blocking — email fail hone se status update fail nahi honi chahiye)
+    // Send targeted email according to updated status (non-blocking)
     try {
-      await sendEmail(
-        appointment.patientEmail,
-        `SmileHub - Appointment ${status}`,
-        `Hello ${appointment.patientName},
+      let emailData;
+      if (status === "Confirmed") {
+        emailData = getAppointmentConfirmedTemplate({
+          patientName: appointment.patientName,
+          doctorName: doctorName,
+          specialization: doctorSpecialization,
+          day: appointment.day,
+          slot: appointment.slot,
+        });
+      } else if (status === "Completed") {
+        emailData = getAppointmentCompletedTemplate({
+          patientName: appointment.patientName,
+          doctorName: doctorName,
+          specialization: doctorSpecialization,
+          day: appointment.day,
+          slot: appointment.slot,
+        });
+      } else if (status === "Cancelled") {
+        emailData = getAppointmentCancelledTemplate({
+          patientName: appointment.patientName,
+          doctorName: doctorName,
+          specialization: doctorSpecialization,
+          day: appointment.day,
+          slot: appointment.slot,
+        });
+      } else {
+        emailData = getAppointmentBookedTemplate({
+          patientName: appointment.patientName,
+          doctorName: doctorName,
+          specialization: doctorSpecialization,
+          day: appointment.day,
+          slot: appointment.slot,
+        });
+      }
 
-Your SmileHub appointment status has been updated.
-
-Appointment Details:
-
-Doctor: ${doctorData.name}
-Specialization: ${doctorData.specialization || "N/A"}
-Day: ${appointment.day}
-Time Slot: ${appointment.slot}
-Status: ${status}
-
-Regards,
-SmileHub Team`
-      );
+      if (emailData && appointment.patientEmail) {
+        await sendEmail(
+          appointment.patientEmail,
+          emailData.subject,
+          emailData.message,
+          emailData.html
+        );
+      }
     } catch (emailError) {
       console.error(
         "⚠️ Status update email failed but status was updated:",
@@ -285,27 +312,21 @@ const cancelAppointment = async (req, res) => {
 
     await appointment.save();
 
-    // Cancellation email (non-blocking — email fail hone se cancel fail nahi honi chahiye)
+    // Cancellation email (non-blocking)
     try {
+      const emailData = getAppointmentCancelledTemplate({
+        patientName: appointment.patientName,
+        doctorName: doctorData.name,
+        specialization: doctorData.specialization,
+        day: appointment.day,
+        slot: appointment.slot,
+      });
+
       await sendEmail(
         appointment.patientEmail,
-        "SmileHub - Appointment Cancelled",
-        `Hello ${appointment.patientName},
-
-Your SmileHub appointment has been cancelled successfully.
-
-Appointment Details:
-
-Doctor: ${doctorData.name}
-Specialization: ${doctorData.specialization || "N/A"}
-Day: ${appointment.day}
-Time Slot: ${appointment.slot}
-Status: Cancelled
-
-If you want to book another appointment, please visit SmileHub.
-
-Regards,
-SmileHub Team`
+        emailData.subject,
+        emailData.message,
+        emailData.html
       );
     } catch (emailError) {
       console.error(
@@ -410,34 +431,23 @@ const rescheduleAppointment = async (req, res) => {
 
     await appointment.save();
 
-    // Reschedule email (non-blocking — email fail hone se reschedule fail nahi honi chahiye)
+    // Reschedule email (non-blocking)
     try {
+      const emailData = getAppointmentRescheduledTemplate({
+        patientName: appointment.patientName,
+        doctorName: doctorData.name,
+        specialization: doctorData.specialization,
+        oldDay,
+        oldSlot,
+        newDay: appointment.day,
+        newSlot: appointment.slot,
+      });
+
       await sendEmail(
         appointment.patientEmail,
-        "SmileHub - Appointment Rescheduled",
-        `Hello ${appointment.patientName},
-
-Your SmileHub appointment has been rescheduled successfully.
-
-Previous Appointment:
-
-Doctor: ${doctorData.name}
-Specialization: ${doctorData.specialization || "N/A"}
-Day: ${oldDay}
-Time Slot: ${oldSlot}
-
-New Appointment:
-
-Doctor: ${doctorData.name}
-Specialization: ${doctorData.specialization || "N/A"}
-Day: ${appointment.day}
-Time Slot: ${appointment.slot}
-Status: Pending
-
-Thank you for choosing SmileHub.
-
-Regards,
-SmileHub Team`
+        emailData.subject,
+        emailData.message,
+        emailData.html
       );
     } catch (emailError) {
       console.error(
