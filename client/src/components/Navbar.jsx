@@ -76,6 +76,30 @@ function Navbar() {
               </Link>
             </li>
 
+            {/* About */}
+            <li className="nav-item">
+              <Link
+                className={`nav-link px-3 py-2 rounded-3 fw-semibold ${
+                  isActive("/about") ? "text-primary active bg-light" : "text-secondary"
+                }`}
+                to="/about"
+              >
+                About Us
+              </Link>
+            </li>
+
+            {/* Contact */}
+            <li className="nav-item">
+              <Link
+                className={`nav-link px-3 py-2 rounded-3 fw-semibold ${
+                  isActive("/contact") ? "text-primary active bg-light" : "text-secondary"
+                }`}
+                to="/contact"
+              >
+                Contact
+              </Link>
+            </li>
+
             {/* Logged In User Options */}
             {userInfo ? (
               <>

@@ -21,6 +21,8 @@ import MyAppointments from "./pages/MyAppointments";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import VerifyOTP from "./pages/VerifyOTP";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 
 function App() {
   return (
@@ -34,6 +36,18 @@ function App() {
           <Route
             path="/"
             element={<Home />}
+          />
+
+          {/* About */}
+          <Route
+            path="/about"
+            element={<About />}
+          />
+
+          {/* Contact */}
+          <Route
+            path="/contact"
+            element={<Contact />}
           />
 
           {/* Doctors */}

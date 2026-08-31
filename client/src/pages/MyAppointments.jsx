@@ -1,30 +1,26 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import { toast } from "react-toastify";
+import { Link } from "react-router-dom";
 
 function MyAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("upcoming");
 
   // Reschedule states
   const [rescheduleId, setRescheduleId] = useState(null);
   const [newDay, setNewDay] = useState("");
   const [newSlot, setNewSlot] = useState("");
-  const [rescheduleLoading, setRescheduleLoading] =
-    useState(false);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
   }, []);
 
-  // =========================
-  // Fetch Appointments
-  // =========================
   const fetchAppointments = async () => {
     try {
-      const userInfo = JSON.parse(
-        localStorage.getItem("userInfo")
-      );
+      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
 
       if (!userInfo) {
         toast.error("Please login first");
@@ -37,27 +33,22 @@ function MyAppointments() {
         },
       });
 
-      setAppointments(res.data);
+      setAppointments(res.data || []);
     } catch (error) {
       console.error(error);
-
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to load appointments"
-      );
+      toast.error(error.response?.data?.message || "Failed to load appointments");
     } finally {
       setLoading(false);
     }
   };
 
-  // =========================
-  // Cancel Appointment
-  // =========================
   const cancelAppointment = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this appointment?")) {
+      return;
+    }
+
     try {
-      const userInfo = JSON.parse(
-        localStorage.getItem("userInfo")
-      );
+      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
 
       const res = await api.patch(
         `/appointments/${id}`,
@@ -69,54 +60,35 @@ function MyAppointments() {
         }
       );
 
-      toast.success(res.data.message);
-
+      toast.success(res.data.message || "Appointment cancelled successfully");
       fetchAppointments();
     } catch (error) {
       console.error(error);
-
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to cancel appointment"
-      );
+      toast.error(error.response?.data?.message || "Failed to cancel appointment");
     }
   };
 
-  // =========================
-  // Open Reschedule
-  // =========================
   const openReschedule = (appointment) => {
     setRescheduleId(appointment._id);
-
-    // Existing day and slot
     setNewDay(appointment.day || "");
     setNewSlot(appointment.slot || "");
   };
 
-  // =========================
-  // Close Reschedule
-  // =========================
   const closeReschedule = () => {
     setRescheduleId(null);
     setNewDay("");
     setNewSlot("");
   };
 
-  // =========================
-  // Reschedule Appointment
-  // =========================
   const rescheduleAppointment = async (id) => {
     if (!newDay || !newSlot) {
-      toast.error("Please provide new day and slot.");
+      toast.error("Please select both day and time slot");
       return;
     }
 
     try {
       setRescheduleLoading(true);
-
-      const userInfo = JSON.parse(
-        localStorage.getItem("userInfo")
-      );
+      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
 
       const res = await api.put(
         `/appointments/${id}/reschedule`,
@@ -131,409 +103,366 @@ function MyAppointments() {
         }
       );
 
-      toast.success(res.data.message);
-
+      toast.success(res.data.message || "Appointment rescheduled successfully!");
       closeReschedule();
-
       fetchAppointments();
     } catch (error) {
       console.error(error);
-
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to reschedule appointment"
-      );
+      toast.error(error.response?.data?.message || "Failed to reschedule appointment");
     } finally {
       setRescheduleLoading(false);
     }
   };
 
-  // =========================
-  // Separate Appointments
-  // =========================
-
   const upcomingAppointments = appointments.filter(
-    (appointment) =>
-      appointment.status !== "Cancelled" &&
-      appointment.status !== "Completed"
+    (a) => a.status !== "Cancelled" && a.status !== "Completed"
   );
+  const pastAppointments = appointments.filter((a) => a.status === "Completed");
+  const cancelledAppointments = appointments.filter((a) => a.status === "Cancelled");
 
-  const pastAppointments = appointments.filter(
-    (appointment) =>
-      appointment.status === "Completed"
-  );
+  const selectedAppointment = appointments.find((a) => a._id === rescheduleId);
+  const availableDays = selectedAppointment?.doctor?.availableDays || [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const availableSlots = selectedAppointment?.doctor?.availableSlots || [
+    "09:00 AM",
+    "10:00 AM",
+    "11:00 AM",
+    "02:00 PM",
+    "03:00 PM",
+    "04:00 PM",
+  ];
 
-  const cancelledAppointments = appointments.filter(
-    (appointment) =>
-      appointment.status === "Cancelled"
-  );
-
-  // =========================
-  // Appointment Card
-  // =========================
-
-  const AppointmentCard = ({ appointment }) => {
+  if (loading) {
     return (
-      <div className="col-lg-6 mb-4">
-        <div className="card shadow border-0 h-100">
-          <div className="card-body">
+      <div className="container py-5 text-center">
+        <div className="spinner-border text-primary" role="status"></div>
+        <h5 className="mt-3 text-secondary">Loading Your Consultations...</h5>
+      </div>
+    );
+  }
 
-            <h4 className="text-primary">
-              {appointment.doctor?.name || "Doctor"}
-            </h4>
+  const renderAppointmentCard = (appointment) => {
+    const doctorPhoto =
+      appointment.doctor?.photo ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        appointment.doctor?.name || "Doctor"
+      )}&background=0284c7&color=fff&size=150`;
 
-            <p className="mb-2">
-              <strong>Specialization:</strong>{" "}
-              {appointment.doctor?.specialization || "N/A"}
-            </p>
-
-            <p className="mb-2">
-              <strong>Patient:</strong>{" "}
-              {appointment.patientName}
-            </p>
-
-            <p className="mb-2">
-              <strong>Email:</strong>{" "}
-              {appointment.patientEmail}
-            </p>
-
-            <p className="mb-2">
-              <strong>Day:</strong>{" "}
-              {appointment.day}
-            </p>
-
-            <p className="mb-3">
-              <strong>Slot:</strong>{" "}
-              {appointment.slot}
-            </p>
-
-            <p className="mb-3">
-              <strong>Status:</strong>{" "}
+    return (
+      <div className="col-lg-6 mb-4" key={appointment._id}>
+        <div className="card shadow-sm border-0 rounded-4 h-100 overflow-hidden bg-white">
+          <div className="card-body p-4">
+            <div className="d-flex align-items-start justify-content-between mb-3">
+              <div className="d-flex align-items-center gap-3">
+                <img
+                  src={doctorPhoto}
+                  alt={appointment.doctor?.name || "Doctor"}
+                  className="rounded-circle shadow-sm"
+                  style={{ width: "65px", height: "65px", objectFit: "cover" }}
+                />
+                <div>
+                  <h5 className="fw-bold text-dark mb-1">{appointment.doctor?.name || "Dr. Specialist"}</h5>
+                  <p className="text-primary small fw-semibold mb-0">
+                    {appointment.doctor?.specialization || "General Healthcare"}
+                  </p>
+                  <small className="text-muted">
+                    <i className="bi bi-geo-alt me-1"></i> SmileHub Specialist Clinic
+                  </small>
+                </div>
+              </div>
 
               <span
-                className={`badge ${
-                  appointment.status === "Cancelled"
-                    ? "bg-danger"
+                className={`badge rounded-pill px-3 py-2 fw-semibold ${
+                  appointment.status === "Confirmed"
+                    ? "bg-success text-white"
                     : appointment.status === "Completed"
-                    ? "bg-primary"
-                    : appointment.status === "Confirmed"
-                    ? "bg-success"
+                    ? "bg-primary text-white"
+                    : appointment.status === "Cancelled"
+                    ? "bg-danger text-white"
                     : "bg-warning text-dark"
                 }`}
               >
                 {appointment.status}
               </span>
-            </p>
+            </div>
 
-            {/* Upcoming Appointment Buttons */}
-            {appointment.status !== "Cancelled" &&
-              appointment.status !== "Completed" && (
-                <div className="d-flex gap-2">
-
-                  <button
-                    className="btn btn-danger"
-                    onClick={() =>
-                      cancelAppointment(
-                        appointment._id
-                      )
-                    }
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    className="btn btn-primary"
-                    onClick={() =>
-                      openReschedule(appointment)
-                    }
-                  >
-                    Reschedule
-                  </button>
-
+            {/* Schedule details */}
+            <div className="p-3 bg-light rounded-3 mb-3">
+              <div className="row g-2 small">
+                <div className="col-6">
+                  <span className="text-muted d-block">Scheduled Day:</span>
+                  <strong className="text-dark">
+                    <i className="bi bi-calendar2-day text-primary me-1"></i> {appointment.day}
+                  </strong>
                 </div>
+                <div className="col-6">
+                  <span className="text-muted d-block">Time Slot:</span>
+                  <strong className="text-dark">
+                    <i className="bi bi-clock text-primary me-1"></i> {appointment.slot}
+                  </strong>
+                </div>
+                <div className="col-12 mt-2 pt-2 border-top">
+                  <span className="text-muted">Patient: </span>
+                  <strong className="text-dark">{appointment.patientName}</strong>
+                  <span className="text-muted ms-2">({appointment.patientEmail})</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="d-flex justify-content-end gap-2 mt-auto">
+              {appointment.status !== "Cancelled" && appointment.status !== "Completed" && (
+                <>
+                  <button
+                    className="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold"
+                    onClick={() => cancelAppointment(appointment._id)}
+                  >
+                    <i className="bi bi-x-circle me-1"></i> Cancel
+                  </button>
+                  <button
+                    className="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold"
+                    onClick={() => openReschedule(appointment)}
+                  >
+                    <i className="bi bi-arrow-repeat me-1"></i> Reschedule
+                  </button>
+                </>
               )}
-
-            {/* Cancelled */}
-            {appointment.status === "Cancelled" && (
-              <button
-                className="btn btn-secondary"
-                disabled
-              >
-                Cancelled
-              </button>
-            )}
-
-            {/* Completed */}
-            {appointment.status === "Completed" && (
-              <button
-                className="btn btn-primary"
-                disabled
-              >
-                Completed
-              </button>
-            )}
-
+              {appointment.status === "Completed" && (
+                <Link
+                  to={`/doctor/${appointment.doctor?._id || ""}`}
+                  className="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold"
+                >
+                  <i className="bi bi-calendar-plus me-1"></i> Book Again
+                </Link>
+              )}
+              {appointment.status === "Cancelled" && (
+                <Link
+                  to={`/doctor/${appointment.doctor?._id || ""}`}
+                  className="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-semibold"
+                >
+                  <i className="bi bi-arrow-clockwise me-1"></i> Re-book Slot
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>
     );
   };
 
-  // =========================
-  // Loading
-  // =========================
-
-  if (loading) {
-    return (
-      <div className="container mt-5 text-center">
-        <h3>Loading Appointments...</h3>
-      </div>
-    );
-  }
-
-  // =========================
-  // Selected Appointment
-  // =========================
-
-  const selectedAppointment = appointments.find(
-    (appointment) =>
-      appointment._id === rescheduleId
-  );
-
-  // Doctor available days
-  const availableDays =
-    selectedAppointment?.doctor?.availableDays || [
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-
-  // Doctor available slots
-  const availableSlots =
-    selectedAppointment?.doctor?.availableSlots || [];
-
-  // =========================
-  // Page
-  // =========================
-
   return (
-    <div className="container my-5">
-
-      <h2 className="text-center fw-bold mb-5">
-        📅 My Appointments
-      </h2>
-
-      {/* =========================
-          Upcoming
-      ========================= */}
-
-      <div className="mb-5">
-
-        <h3 className="fw-bold mb-3">
-          🟢 Upcoming Appointments
-        </h3>
-
-        {upcomingAppointments.length === 0 ? (
-          <div className="alert alert-info">
-            No upcoming appointments found.
-          </div>
-        ) : (
-          <div className="row">
-            {upcomingAppointments.map(
-              (appointment) => (
-                <AppointmentCard
-                  key={appointment._id}
-                  appointment={appointment}
-                />
-              )
-            )}
-          </div>
-        )}
-
+    <div className="container py-4">
+      {/* Header */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+          <h2 className="fw-bold text-dark mb-1">
+            <i className="bi bi-calendar2-week text-primary me-2"></i>
+            My Appointments
+          </h2>
+          <p className="text-muted mb-0">Track and manage all your scheduled doctor consultations</p>
+        </div>
+        <div className="mt-3 mt-md-0">
+          <Link to="/doctors" className="btn btn-primary rounded-pill px-4 py-2 fw-semibold text-white shadow-sm">
+            <i className="bi bi-plus-lg me-1"></i> Book New Appointment
+          </Link>
+        </div>
       </div>
 
-      {/* =========================
-          Past
-      ========================= */}
-
-      <div className="mb-5">
-
-        <h3 className="fw-bold mb-3">
-          🔵 Past Appointments
-        </h3>
-
-        {pastAppointments.length === 0 ? (
-          <div className="alert alert-secondary">
-            No completed appointments found.
-          </div>
-        ) : (
-          <div className="row">
-            {pastAppointments.map(
-              (appointment) => (
-                <AppointmentCard
-                  key={appointment._id}
-                  appointment={appointment}
-                />
-              )
-            )}
-          </div>
-        )}
-
+      {/* Tabs */}
+      <div className="d-flex gap-2 mb-4 p-1 bg-light rounded-pill border" style={{ maxWidth: "480px" }}>
+        <button
+          className={`btn btn-sm rounded-pill flex-fill fw-semibold py-2 transition-all ${
+            activeTab === "upcoming"
+              ? "btn-primary text-white shadow-sm"
+              : "btn-light text-secondary border-0"
+          }`}
+          onClick={() => setActiveTab("upcoming")}
+        >
+          Upcoming ({upcomingAppointments.length})
+        </button>
+        <button
+          className={`btn btn-sm rounded-pill flex-fill fw-semibold py-2 transition-all ${
+            activeTab === "completed"
+              ? "btn-primary text-white shadow-sm"
+              : "btn-light text-secondary border-0"
+          }`}
+          onClick={() => setActiveTab("completed")}
+        >
+          Completed ({pastAppointments.length})
+        </button>
+        <button
+          className={`btn btn-sm rounded-pill flex-fill fw-semibold py-2 transition-all ${
+            activeTab === "cancelled"
+              ? "btn-primary text-white shadow-sm"
+              : "btn-light text-secondary border-0"
+          }`}
+          onClick={() => setActiveTab("cancelled")}
+        >
+          Cancelled ({cancelledAppointments.length})
+        </button>
       </div>
 
-      {/* =========================
-          Cancelled
-      ========================= */}
+      {/* Tab Content */}
+      {activeTab === "upcoming" && (
+        <div>
+          {upcomingAppointments.length === 0 ? (
+            <div className="card shadow-sm border-0 rounded-4 text-center py-5">
+              <div className="fs-1 text-muted mb-3">
+                <i className="bi bi-calendar-check"></i>
+              </div>
+              <h5 className="fw-bold text-dark">No Upcoming Appointments</h5>
+              <p className="text-muted small mb-4">You have no active or pending appointments right now.</p>
+              <div>
+                <Link to="/doctors" className="btn btn-primary rounded-pill px-4 btn-sm text-white">
+                  Find Doctors & Schedule
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="row g-4">{upcomingAppointments.map(renderAppointmentCard)}</div>
+          )}
+        </div>
+      )}
 
-      <div className="mb-5">
+      {activeTab === "completed" && (
+        <div>
+          {pastAppointments.length === 0 ? (
+            <div className="card shadow-sm border-0 rounded-4 text-center py-5">
+              <div className="fs-1 text-muted mb-3">
+                <i className="bi bi-check2-circle"></i>
+              </div>
+              <h5 className="fw-bold text-dark">No Past Appointments</h5>
+              <p className="text-muted small">Completed doctor consultations will appear here.</p>
+            </div>
+          ) : (
+            <div className="row g-4">{pastAppointments.map(renderAppointmentCard)}</div>
+          )}
+        </div>
+      )}
 
-        <h3 className="fw-bold mb-3">
-          🔴 Cancelled Appointments
-        </h3>
+      {activeTab === "cancelled" && (
+        <div>
+          {cancelledAppointments.length === 0 ? (
+            <div className="card shadow-sm border-0 rounded-4 text-center py-5">
+              <div className="fs-1 text-muted mb-3">
+                <i className="bi bi-journal-x"></i>
+              </div>
+              <h5 className="fw-bold text-dark">No Cancelled Appointments</h5>
+              <p className="text-muted small">Cancelled appointments will be listed here.</p>
+            </div>
+          ) : (
+            <div className="row g-4">{cancelledAppointments.map(renderAppointmentCard)}</div>
+          )}
+        </div>
+      )}
 
-        {cancelledAppointments.length === 0 ? (
-          <div className="alert alert-light border">
-            No cancelled appointments found.
-          </div>
-        ) : (
-          <div className="row">
-            {cancelledAppointments.map(
-              (appointment) => (
-                <AppointmentCard
-                  key={appointment._id}
-                  appointment={appointment}
-                />
-              )
-            )}
-          </div>
-        )}
-
-      </div>
-
-      {/* =========================
-          Reschedule Modal
-      ========================= */}
-
+      {/* Reschedule Modal */}
       {rescheduleId && (
         <div
           className="modal d-block"
           tabIndex="-1"
-          style={{
-            backgroundColor: "rgba(0,0,0,0.5)",
-          }}
+          style={{ backgroundColor: "rgba(15, 23, 42, 0.6)" }}
         >
           <div className="modal-dialog modal-dialog-centered">
-
-            <div className="modal-content">
-
-              {/* Header */}
-              <div className="modal-header">
-
-                <h5 className="modal-title">
-                  📅 Reschedule Appointment
+            <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+              <div className="modal-header bg-primary text-white py-3">
+                <h5 className="modal-title fw-bold">
+                  <i className="bi bi-calendar2-range me-2"></i>
+                  Reschedule Appointment
                 </h5>
-
                 <button
                   type="button"
-                  className="btn-close"
+                  className="btn-close btn-close-white"
                   onClick={closeReschedule}
                 ></button>
-
               </div>
 
-              {/* Body */}
-              <div className="modal-body">
+              <div className="modal-body p-4">
+                <p className="text-muted small mb-4">
+                  Select a new day and available time slot for your consultation with{" "}
+                  <strong>{selectedAppointment?.doctor?.name}</strong>.
+                </p>
 
-                {/* Day */}
-                <label className="form-label">
-                  Select New Day
-                </label>
+                {/* Select Day */}
+                <div className="mb-4">
+                  <label className="form-label fw-bold small text-dark">1. Select New Day</label>
+                  <div className="d-flex flex-wrap gap-2">
+                    {availableDays.map((d) => (
+                      <button
+                        type="button"
+                        key={d}
+                        className={`btn btn-sm rounded-pill px-3 py-2 fw-semibold ${
+                          newDay === d
+                            ? "btn-primary text-white shadow-sm"
+                            : "btn-light border text-secondary"
+                        }`}
+                        onClick={() => {
+                          setNewDay(d);
+                          setNewSlot("");
+                        }}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                <select
-                  className="form-select mb-3"
-                  value={newDay}
-                  onChange={(e) =>
-                    setNewDay(e.target.value)
-                  }
-                >
-                  <option value="">
-                    Select Day
-                  </option>
-
-                  {availableDays.map((day) => (
-                    <option
-                      key={day}
-                      value={day}
-                    >
-                      {day}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Slot */}
-                <label className="form-label">
-                  Select New Slot
-                </label>
-
-                <select
-                  className="form-select"
-                  value={newSlot}
-                  onChange={(e) =>
-                    setNewSlot(e.target.value)
-                  }
-                >
-                  <option value="">
-                    Select Slot
-                  </option>
-
-                  {availableSlots.map((slot) => (
-                    <option
-                      key={slot}
-                      value={slot}
-                    >
-                      {slot}
-                    </option>
-                  ))}
-                </select>
-
+                {/* Select Slot */}
+                <div className="mb-4">
+                  <label className="form-label fw-bold small text-dark">2. Select New Time Slot</label>
+                  <div className="d-flex flex-wrap gap-2">
+                    {availableSlots.map((s) => (
+                      <button
+                        type="button"
+                        key={s}
+                        className={`btn btn-sm rounded-pill px-3 py-2 fw-semibold ${
+                          newSlot === s
+                            ? "btn-success text-white shadow-sm"
+                            : "btn-light border text-secondary"
+                        }`}
+                        onClick={() => setNewSlot(s)}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Footer */}
-              <div className="modal-footer">
-
+              <div className="modal-footer border-top bg-light p-3">
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-outline-secondary rounded-pill px-4 fw-semibold"
                   onClick={closeReschedule}
                 >
-                  Close
+                  Cancel
                 </button>
-
                 <button
                   type="button"
-                  className="btn btn-primary"
-                  disabled={rescheduleLoading}
-                  onClick={() =>
-                    rescheduleAppointment(
-                      rescheduleId
-                    )
-                  }
+                  className="btn btn-primary rounded-pill px-4 fw-semibold text-white shadow-sm"
+                  disabled={rescheduleLoading || !newDay || !newSlot}
+                  onClick={() => rescheduleAppointment(rescheduleId)}
                 >
-                  {rescheduleLoading
-                    ? "Updating..."
-                    : "Confirm Reschedule"}
+                  {rescheduleLoading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Rescheduling...
+                    </>
+                  ) : (
+                    "Confirm Reschedule"
+                  )}
                 </button>
-
               </div>
-
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
