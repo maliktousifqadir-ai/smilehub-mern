@@ -24,11 +24,18 @@ const sendEmail = async (to, subject, message, html = null) => {
     const cleanPass = rawPass.replace(/\s+/g, "");
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: {
         user,
         pass: cleanPass,
       },
+      family: 4, // Force IPv4 — fixes ENETUNREACH on Render
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
 
     const mailOptions = {
